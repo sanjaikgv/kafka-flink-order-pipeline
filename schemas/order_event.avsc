@@ -1,0 +1,21 @@
+{
+  "type": "record",
+  "name": "OrderEvent",
+  "namespace": "com.supplychain.events",
+  "fields": [
+    {"name": "order_id",      "type": "string"},
+    {"name": "facility_id",   "type": "string"},
+    {"name": "facility_type", "type": {"type": "enum", "name": "FacilityType",
+                               "symbols": ["WAREHOUSE", "FULFILLMENT_CENTER", "DARK_KITCHEN"]}},
+    {"name": "region",        "type": "string"},
+    {"name": "order_state",   "type": {"type": "enum", "name": "OrderState",
+                               "symbols": ["ORDER_CREATED", "FACILITY_ASSIGNED",
+                                           "PROCESSING", "IN_TRANSIT", "DELIVERED", "CANCELLED"]}},
+    {"name": "customer_id",   "type": "string"},
+    {"name": "item_count",    "type": "int"},
+    {"name": "order_value",   "type": "float"},
+    {"name": "event_timestamp", "type": "long",
+     "logicalType": "timestamp-millis"},
+    {"name": "previous_state", "type": ["null", "string"], "default": null}
+  ]
+}

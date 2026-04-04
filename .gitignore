@@ -1,5 +1,14 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+
+# EnvVars and secrets
 .env
-.venv
-plan
-screenshots
-keys
+keys/
+
+.DS_Store
+screenshots/
+plan/

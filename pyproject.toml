@@ -1,0 +1,13 @@
+[project]
+name = "kafka-flink-order-pipeline"
+version = "0.1.0"
+description = "Real-time order fulfillment streaming pipeline using Kafka and Flink"
+requires-python = ">=3.11"
+dependencies = [
+    "confluent-kafka[avro,schemaregistry]==2.13.2",
+    "python-dotenv==1.1.0",
+    "faker==37.1.0",
+]
+
+[tool.uv]
+dev-dependencies = []

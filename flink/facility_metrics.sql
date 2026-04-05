@@ -59,7 +59,7 @@ SELECT
     COUNT(*) FILTER (WHERE order_state = 'CANCELLED')          AS cancellation_count,
     COUNT(*) FILTER (WHERE is_high_value = TRUE)               AS high_value_count,
     COUNT(*) FILTER (WHERE order_state = 'PROCESSING'
-                     AND previous_state = 'FACILITY_ASSIGNED') AS sla_breach_count
+                     AND previous_state = 'PROCESSING') AS sla_breach_count
 FROM TABLE(
     TUMBLE(
         TABLE `enriched-events`,

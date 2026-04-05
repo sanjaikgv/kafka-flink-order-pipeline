@@ -72,19 +72,38 @@ def build_producer(schema_str: str) -> SerializingProducer:
 
 def next_event() -> dict:
     """
-    Either progress an existing order or create a new one.
-    Occasionally inject a CANCELLED event for realism.
+    Generate the next order lifecycle event for streaming to Kafka.
+
+    Simulates realistic order behavior by assigning each new order
+    a predetermined fate at creation time (complete, cancel, or
+    sla_breach) to reflect real-world outcomes which are driven by
+    upstream factors rather than random state-by-state transitions.
+
+    Fate distribution (weighted):
+        - complete (85%):    order progresses through all states to DELIVERED
+        - cancel (8%):       order cancels at ORDER_CREATED or FACILITY_ASSIGNED
+                             (cancellations after PROCESSING are not realistic)
+        - sla_breach (7%):   order stalls at PROCESSING, emitting repeated
+                             PROCESSING events to simulate a stuck fulfillment
+
+    Returns:
+        dict: Avro-compatible order event with all required schema fields.
     """
-    # 30% chance: create a brand new order
+    # 30% chance: create a new order
     if not active_orders or random.random() < 0.30:
-        order_id   = f"ORD-{fake.uuid4()[:8].upper()}"
-        facility   = random.choice(FACILITIES)
+        order_id = f"ORD-{fake.uuid4()[:8].upper()}"
+        facility = random.choice(FACILITIES)
         active_orders[order_id] = {
             "facility":    facility,
             "state_index": 0,
             "customer_id": f"CUST-{fake.uuid4()[:6].upper()}",
             "item_count":  random.randint(1, 20),
             "order_value": round(random.uniform(15.0, 500.0), 2),
+            "fate": random.choices(
+                ["complete", "cancel", "sla_breach"],
+                weights=[85, 8, 7],
+                k=1
+            )[0]
         }
         order = active_orders[order_id]
         return {
@@ -100,33 +119,84 @@ def next_event() -> dict:
             "previous_state":  None,
         }
 
-    # Pick a random active order and advance its state
     order_id = random.choice(list(active_orders.keys()))
     order    = active_orders[order_id]
     prev     = ORDER_STATES[order["state_index"]]
+    fate     = order["fate"]
 
-    # 5% chance: cancel instead of advancing
-    if random.random() < 0.05:
-        del active_orders[order_id]
+    # --- Cancellation fate ---
+    # cancel at ORDER_CREATED or FACILITY_ASSIGNED
+    if fate == "cancel" and order["state_index"] < 2:
+        if random.random() < 0.4:  # 40% chance to cancel at this step
+            del active_orders[order_id]
+            return {
+                "order_id":        order_id,
+                "facility_id":     order["facility"]["facility_id"],
+                "facility_type":   order["facility"]["facility_type"],
+                "region":          order["facility"]["region"],
+                "order_state":     "CANCELLED",
+                "customer_id":     order["customer_id"],
+                "item_count":      order["item_count"],
+                "order_value":     order["order_value"],
+                "event_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "previous_state":  prev,
+            }
+
+    # --- SLA breach fate ---
+    # get stuck at PROCESSING state (state_index == 2)
+    if fate == "sla_breach" and order["state_index"] == 2:
+        if "stuck_since" not in order:
+            order["stuck_since"] = datetime.now(timezone.utc)
+
+        stuck_minutes = (
+            datetime.now(timezone.utc) - order["stuck_since"]
+        ).total_seconds() / 60
+
+        resolution_threshold = order.setdefault(
+            "resolution_threshold", random.uniform(30, 120)
+        )
+
+        if stuck_minutes >= resolution_threshold:
+            # resolved — advance past PROCESSING
+            order["state_index"] += 1
+            new_state = ORDER_STATES[order["state_index"]]
+            order.pop("stuck_since", None)
+            order.pop("resolution_threshold", None)
+            if order["state_index"] == len(ORDER_STATES) - 1:
+                del active_orders[order_id]
+            return {
+                "order_id":        order_id,
+                "facility_id":     order["facility"]["facility_id"],
+                "facility_type":   order["facility"]["facility_type"],
+                "region":          order["facility"]["region"],
+                "order_state":     new_state,
+                "customer_id":     order["customer_id"],
+                "item_count":      order["item_count"],
+                "order_value":     order["order_value"],
+                "event_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "previous_state":  "PROCESSING",
+            }
+
+        # still stuck — keep emitting PROCESSING
         return {
             "order_id":        order_id,
             "facility_id":     order["facility"]["facility_id"],
             "facility_type":   order["facility"]["facility_type"],
             "region":          order["facility"]["region"],
-            "order_state":     "CANCELLED",
+            "order_state":     "PROCESSING",
             "customer_id":     order["customer_id"],
             "item_count":      order["item_count"],
             "order_value":     order["order_value"],
             "event_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
-            "previous_state":  prev,
+            "previous_state":  "FACILITY_ASSIGNED",
         }
 
-    # Advance to next state
+    # --- Normal advancement ---
     order["state_index"] += 1
     new_state = ORDER_STATES[order["state_index"]]
 
     if order["state_index"] == len(ORDER_STATES) - 1:
-        del active_orders[order_id]  # order completed
+        del active_orders[order_id]
 
     return {
         "order_id":        order_id,

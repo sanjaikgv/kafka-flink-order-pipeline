@@ -16,6 +16,15 @@
     {"name": "order_value",   "type": "float"},
     {"name": "event_timestamp", "type": "long",
      "logicalType": "timestamp-millis"},
-    {"name": "previous_state", "type": ["null", "string"], "default": null}
+    {"name": "previous_state", "type": ["null", "string"], "default": null},
+    {
+      "name": "priority_tier",
+      "type": {
+        "type": "enum",
+        "name": "PriorityTier",
+        "symbols": ["STANDARD", "EXPRESS", "PRIORITY"]
+      },
+      "default": "STANDARD"
+    }
   ]
 }

@@ -117,7 +117,12 @@ def next_event() -> dict:
             "order_value":     order["order_value"],
             "event_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
             "previous_state":  None,
-        }
+            "priority_tier":   random.choices(
+                                ["STANDARD", "EXPRESS", "PRIORITY"],
+                                weights=[70, 20, 10],
+                                k=1
+                                )[0],
+            }
 
     order_id = random.choice(list(active_orders.keys()))
     order    = active_orders[order_id]
@@ -140,6 +145,11 @@ def next_event() -> dict:
                 "order_value":     order["order_value"],
                 "event_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
                 "previous_state":  prev,
+                "priority_tier":   random.choices(
+                                    ["STANDARD", "EXPRESS", "PRIORITY"],
+                                    weights=[70, 20, 10],
+                                    k=1
+                                    )[0],
             }
 
     # --- SLA breach fate ---
@@ -175,6 +185,11 @@ def next_event() -> dict:
                 "order_value":     order["order_value"],
                 "event_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
                 "previous_state":  "PROCESSING",
+                "priority_tier":   random.choices(
+                                    ["STANDARD", "EXPRESS", "PRIORITY"],
+                                    weights=[70, 20, 10],
+                                    k=1
+                                    )[0],
             }
 
         # still stuck — keep emitting PROCESSING
@@ -189,6 +204,11 @@ def next_event() -> dict:
             "order_value":     order["order_value"],
             "event_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
             "previous_state":  "FACILITY_ASSIGNED",
+            "priority_tier":   random.choices(
+                                ["STANDARD", "EXPRESS", "PRIORITY"],
+                                weights=[70, 20, 10],
+                                k=1
+                                )[0],
         }
 
     # --- Normal advancement ---
@@ -209,6 +229,11 @@ def next_event() -> dict:
         "order_value":     order["order_value"],
         "event_timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
         "previous_state":  prev,
+        "priority_tier":   random.choices(
+                            ["STANDARD", "EXPRESS", "PRIORITY"],
+                            weights=[70, 20, 10],
+                            k=1
+                            )[0],
     }
 
 def main():
